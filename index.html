@@ -435,9 +435,9 @@
                     <tr>
                         <th>성명</th>
                         <th>직무</th>
-                        <th>현재프로젝트수</th>
+                        <th>프로젝트수</th>
                         <th>완료업무</th>
-                        <th>일정준수율(%)</th>
+                        <th>일정준수율</th>
                         <th>보유기술</th>
                         <th>작업</th>
                     </tr>
@@ -493,6 +493,54 @@
         </div>
     </div>
 
+    <!-- 상태 이력 모달 -->
+    <div id="status-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <h2>📊 상태 이력 관리</h2>
+            
+            <div style="background: var(--bg-elevated); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem;">
+                    <div><strong>프로젝트:</strong> <span id="status-project"></span></div>
+                    <div><strong>업무명:</strong> <span id="status-task"></span></div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
+                    <div>📅 착수: <span id="status-start"></span></div>
+                    <div>🎯 예정: <span id="status-planned"></span></div>
+                    <div>✅ 완료: <span id="status-actual"></span></div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0;">상태 이력</h3>
+                <button class="btn" onclick="addStatusEntry()">+ 상태 추가</button>
+            </div>
+
+            <div id="status-timeline" style="max-height: 400px; overflow-y: auto;"></div>
+
+            <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                <h3>📊 통계</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 0.5rem;">
+                    <div style="background: var(--bg-elevated); padding: 1rem; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.9rem; color: var(--text-secondary);">순수 작업</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);"><span id="stat-work-days">0</span>일</div>
+                    </div>
+                    <div style="background: var(--bg-elevated); padding: 1rem; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.9rem; color: var(--text-secondary);">인터럽트</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--warning);"><span id="stat-interrupt-days">0</span>일</div>
+                    </div>
+                    <div style="background: var(--bg-elevated); padding: 1rem; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.9rem; color: var(--text-secondary);">총 소요</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;"><span id="stat-total-days">0</span>일</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 2rem; justify-content: flex-end;">
+                <button class="btn btn-danger" onclick="closeStatusModal()">닫기</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ==================== 설정 ====================
         const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxKbqKkOjZJabE0XeujaQoXnwXg_Q5loflXmKyr4NFVP_sirlNMQysi15jDQplB4L8/exec';
@@ -502,6 +550,7 @@
         let DATA = { leadtime: [], members: [], voc: [], baselines: [] };
         let currentType = null;
         let currentIndex = null;
+        let currentTaskIndex = null; // 상태 이력 관리용
         
         // ==================== API ====================
         class API {
@@ -608,6 +657,7 @@
                         <td>${formatDate(item.실제완료일)}</td>
                         <td>${item['리드타임(일)'] || ''}</td>
                         <td>
+                            <button class="btn btn-sm" onclick="openStatusHistory(${idx})" title="상태 이력">📊</button>
                             <button class="btn btn-sm" onclick="editItem('${type}', ${idx})">수정</button>
                             <button class="btn btn-sm btn-danger" onclick="deleteItem('${type}', ${idx})">삭제</button>
                         </td>
@@ -812,6 +862,26 @@
                 
                 // 계획 막대 (하단, 얇고 회색)
                 html += `<div style="position: absolute; left: ${leftPercent}%; width: ${plannedWidth}%; height: 40%; bottom: 0; background: #6c757d; opacity: 0.4; border-radius: 3px; z-index: 1;"></div>`;
+                
+                // 인터럽트 구간 시각화
+                if (task.상태이력 && task.상태이력.length > 0) {
+                    task.상태이력.forEach((entry, idx) => {
+                        if (entry.상태 === '중단' && idx < task.상태이력.length - 1) {
+                            const nextEntry = task.상태이력[idx + 1];
+                            if (nextEntry.상태 === '재개') {
+                                const interruptStart = new Date(entry.날짜);
+                                const interruptEnd = new Date(nextEntry.날짜);
+                                const interruptStartOffset = Math.ceil((interruptStart - minDate) / (1000 * 60 * 60 * 24));
+                                const interruptDuration = Math.ceil((interruptEnd - interruptStart) / (1000 * 60 * 60 * 24));
+                                const interruptLeft = Math.max(0, (interruptStartOffset / totalDays) * 100);
+                                const interruptWidth = Math.max(1, (interruptDuration / totalDays) * 100);
+                                
+                                // 인터럽트 구간 (회색 점선)
+                                html += `<div style="position: absolute; left: ${interruptLeft}%; width: ${interruptWidth}%; height: 60%; top: 0; background: repeating-linear-gradient(45deg, #6c757d, #6c757d 10px, transparent 10px, transparent 20px); opacity: 0.5; border-radius: 5px; z-index: 1;" title="${entry.사유 || '인터럽트'}"></div>`;
+                            }
+                        }
+                    });
+                }
                 
                 // 실제 막대 (상단, 굵고 선명)
                 if (isCompleted) {
@@ -1053,6 +1123,184 @@
                 const text = row.textContent.toLowerCase();
                 row.style.display = text.includes(searchTerm) ? '' : 'none';
             }
+        }
+
+        // ==================== 상태 이력 관리 ====================
+        function openStatusHistory(taskIndex) {
+            currentTaskIndex = taskIndex;
+            const task = DATA.leadtime[taskIndex];
+            
+            // 상태 이력 초기화 (없으면 빈 배열)
+            if (!task.상태이력) {
+                task.상태이력 = [];
+            }
+            
+            // 모달 정보 표시
+            document.getElementById('status-project').textContent = task.프로젝트 || '-';
+            document.getElementById('status-task').textContent = task.업무명 || '-';
+            document.getElementById('status-start').textContent = formatDate(task.업무착수일);
+            document.getElementById('status-planned').textContent = formatDate(task.완료예정일);
+            document.getElementById('status-actual').textContent = formatDate(task.실제완료일) || '진행중';
+            
+            renderStatusTimeline();
+            calculateStatusStats();
+            
+            document.getElementById('status-modal').classList.add('active');
+        }
+
+        function closeStatusModal() {
+            document.getElementById('status-modal').classList.remove('active');
+            // 저장
+            saveData('leadtime');
+            renderGantt();
+        }
+
+        function renderStatusTimeline() {
+            const task = DATA.leadtime[currentTaskIndex];
+            const timeline = document.getElementById('status-timeline');
+            
+            if (!task.상태이력 || task.상태이력.length === 0) {
+                timeline.innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        <p style="font-size: 1.2rem;">📝 상태 이력이 없습니다</p>
+                        <p style="font-size: 0.9rem;">위의 "+ 상태 추가" 버튼을 눌러 상태를 기록하세요</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+            
+            task.상태이력.forEach((entry, idx) => {
+                const statusColors = {
+                    '시작': 'var(--primary)',
+                    '진행중': 'var(--primary)',
+                    '중단': 'var(--warning)',
+                    '재개': 'var(--success)',
+                    '완료': 'var(--success)'
+                };
+                const statusIcons = {
+                    '시작': '▶',
+                    '진행중': '▶',
+                    '중단': '⏸',
+                    '재개': '▶',
+                    '완료': '✓'
+                };
+                
+                const color = statusColors[entry.상태] || 'var(--text-muted)';
+                const icon = statusIcons[entry.상태] || '●';
+                
+                html += `
+                    <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--bg-elevated); border-radius: 8px; border-left: 4px solid ${color};">
+                        <div style="font-size: 1.5rem;">${icon}</div>
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong style="color: ${color}; font-size: 1.1rem;">${entry.상태}</strong>
+                                    <span style="color: var(--text-secondary); margin-left: 1rem;">${formatDate(entry.날짜)}</span>
+                                </div>
+                                <button class="btn btn-sm btn-danger" onclick="deleteStatusEntry(${idx})">삭제</button>
+                            </div>
+                            ${entry.사유 ? `<div style="margin-top: 0.5rem; color: var(--text-secondary);">📝 ${entry.사유}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            timeline.innerHTML = html;
+        }
+
+        function addStatusEntry() {
+            const task = DATA.leadtime[currentTaskIndex];
+            
+            const status = prompt('상태를 선택하세요:\n1. 시작\n2. 진행중\n3. 중단\n4. 재개\n5. 완료', '3');
+            if (!status) return;
+            
+            const statusMap = {'1': '시작', '2': '진행중', '3': '중단', '4': '재개', '5': '완료'};
+            const selectedStatus = statusMap[status] || '진행중';
+            
+            const date = prompt('날짜를 입력하세요 (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+            if (!date) return;
+            
+            let reason = '';
+            if (selectedStatus === '중단') {
+                reason = prompt('중단 사유를 입력하세요:', '');
+            }
+            
+            if (!task.상태이력) {
+                task.상태이력 = [];
+            }
+            
+            task.상태이력.push({
+                상태: selectedStatus,
+                날짜: date,
+                사유: reason || ''
+            });
+            
+            // 날짜순 정렬
+            task.상태이력.sort((a, b) => new Date(a.날짜) - new Date(b.날짜));
+            
+            renderStatusTimeline();
+            calculateStatusStats();
+        }
+
+        function deleteStatusEntry(idx) {
+            if (confirm('이 상태 기록을 삭제하시겠습니까?')) {
+                const task = DATA.leadtime[currentTaskIndex];
+                task.상태이력.splice(idx, 1);
+                renderStatusTimeline();
+                calculateStatusStats();
+            }
+        }
+
+        function calculateStatusStats() {
+            const task = DATA.leadtime[currentTaskIndex];
+            
+            if (!task.상태이력 || task.상태이력.length === 0) {
+                document.getElementById('stat-work-days').textContent = '0';
+                document.getElementById('stat-interrupt-days').textContent = '0';
+                document.getElementById('stat-total-days').textContent = '0';
+                return;
+            }
+            
+            let workDays = 0;
+            let interruptDays = 0;
+            let currentState = null;
+            let stateStartDate = null;
+            
+            task.상태이력.forEach((entry, idx) => {
+                if (currentState && stateStartDate) {
+                    const days = Math.ceil((new Date(entry.날짜) - new Date(stateStartDate)) / (1000 * 60 * 60 * 24));
+                    
+                    if (currentState === '진행중' || currentState === '재개' || currentState === '시작') {
+                        workDays += days;
+                    } else if (currentState === '중단') {
+                        interruptDays += days;
+                    }
+                }
+                
+                currentState = entry.상태;
+                stateStartDate = entry.날짜;
+            });
+            
+            // 마지막 상태에서 오늘까지 (완료 전인 경우)
+            if (currentState && !task.실제완료일) {
+                const today = new Date();
+                const days = Math.ceil((today - new Date(stateStartDate)) / (1000 * 60 * 60 * 24));
+                
+                if (currentState === '진행중' || currentState === '재개' || currentState === '시작') {
+                    workDays += days;
+                } else if (currentState === '중단') {
+                    interruptDays += days;
+                }
+            }
+            
+            const totalDays = workDays + interruptDays;
+            
+            document.getElementById('stat-work-days').textContent = workDays;
+            document.getElementById('stat-interrupt-days').textContent = interruptDays;
+            document.getElementById('stat-total-days').textContent = totalDays;
         }
 
         // ==================== 탭 전환 (구 위치) ====================
