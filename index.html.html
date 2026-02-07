@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연구소 종합관리 시스템</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #0066FF;
+            --success: #00B894;
+            --warning: #FDCB6E;
+            --danger: #D63031;
+            --bg-main: #0A0E27;
+            --bg-card: #151932;
+            --bg-elevated: #1E2445;
+            --text-primary: #F8F9FA;
+            --text-secondary: #ADB5BD;
+            --text-muted: #6C757D;
+            --border: #2D3561;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'IBM Plex Sans KR', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        header {
+            background: rgba(21, 25, 50, 0.95);
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 0 2rem;
+        }
+        
+        .tab-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.8rem 1.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .tab-content {
+            display: none;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            table-layout: auto;
+            min-width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            table {
+                font-size: 0.85rem;
+            }
+            
+            th, td {
+                padding: 0.5rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 150px;
+            }
+        }
+        
+        th {
+            background: var(--bg-elevated);
+            font-weight: 600;
+            resize: horizontal;
+            overflow: auto;
+            position: relative;
+        }
+        
+        th::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: col-resize;
+        }
+        
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            background: var(--bg-elevated);
+            font-weight: 600;
+        }
+        
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            opacity: 0.8;
+        }
+        
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.8rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .form-input[type="date"] {
+            text-align: left;
+            direction: ltr;
+            padding-left: 2.5rem;
+            position: relative;
+        }
+
+        .form-input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            position: absolute;
+            left: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1.5rem;
+            height: 1.5rem;
+            opacity: 1;
+            filter: brightness(1.5) contrast(1.2);
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230066FF"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5z"/></svg>') no-repeat center;
+            background-size: contain;
+        }
+
+        .form-input[type="date"]::-webkit-calendar-picker-indicator:hover {
+            filter: brightness(2) contrast(1.5);
+        }
+        
+        #loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 14, 39, 0.95);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        
+        #loading.active {
+            display: flex;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #sync-status.active {
+            display: flex !important;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        #sync-status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        /* 간트차트 스타일 */
+        .gantt-container {
+            background: var(--bg-elevated);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .gantt-row {
+            display: grid;
+            grid-template-columns: 200px 120px 120px 1fr;
+            gap: 1rem;
+            padding: 0.8rem;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+        }
+
+        .gantt-row:hover {
+            background: var(--bg-card);
+        }
+
+        .gantt-bar-container {
+            position: relative;
+            height: 30px;
+            background: var(--bg-card);
+            border-radius: 5px;
+        }
+
+        .gantt-bar {
+            position: absolute;
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            padding: 0 0.5rem;
+            font-size: 0.85rem;
+            color: white;
+        }
+
+        /* 베이스라인 스타일 */
+        .baseline-item {
+            background: var(--bg-elevated);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .baseline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .doc-item {
+            background: var(--bg-card);
+            padding: 0.8rem;
+            margin: 0.5rem 0;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <p style="margin-top: 1.5rem; font-size: 1.1rem;">데이터 로딩 중...</p>
+    </div>
+
+    <header>
+        <div style="max-width: 1600px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center;">
+            <h1>🔬 연구소 종합관리 시스템</h1>
+            <div id="sync-status" style="display: none; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 1rem;">
+                <span id="sync-text">동기화됨</span>
+            </div>
+        </div>
+    </header>
+
+    <nav class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('gantt')">📈 간트차트</button>
+        <button class="tab-btn" onclick="switchTab('leadtime')">⏱️ 리드타임</button>
+        <button class="tab-btn" onclick="switchTab('members')">👥 연구원</button>
+        <button class="tab-btn" onclick="switchTab('baseline')">📁 베이스라인</button>
+        <button class="tab-btn" onclick="switchTab('voc')">💬 VOC</button>
+    </nav>
+
+    <div class="container">
+        <!-- 간트차트 탭 -->
+        <div id="gantt" class="tab-content active">
+            <h2>간트차트</h2>
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center; flex-wrap: wrap;">
+                <label>프로젝트 선택: 
+                    <select id="project-select" onchange="renderGantt()" style="padding: 0.5rem; border-radius: 5px; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border);">
+                        <option value="">전체 프로젝트</option>
+                    </select>
+                </label>
+                <input type="text" id="gantt-search" placeholder="검색..." style="padding: 0.5rem; border-radius: 5px; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border); flex: 1; min-width: 200px;" oninput="renderGantt()">
+            </div>
+            <div id="gantt-chart" style="overflow-x: auto;"></div>
+        </div>
+
+        <!-- 리드타임 탭 -->
+        <div id="leadtime" class="tab-content">
+            <h2>리드타임 관리</h2>
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <button class="btn" onclick="openModal('leadtime')">+ 새 항목 추가</button>
+                <input type="text" id="leadtime-search" placeholder="검색..." style="flex: 1; padding: 0.5rem; border-radius: 5px; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border);" oninput="searchTable('leadtime')">
+            </div>
+            <table id="leadtime-table">
+                <thead>
+                    <tr>
+                        <th>프로젝트</th>
+                        <th>업무명</th>
+                        <th>분야</th>
+                        <th>담당자</th>
+                        <th>착수일</th>
+                        <th>완료예정일</th>
+                        <th>실제완료일</th>
+                        <th>리드타임</th>
+                        <th>작업</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- 연구원 탭 -->
+        <div id="members" class="tab-content">
+            <h2>연구원 관리</h2>
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <button class="btn" onclick="openModal('members')">+ 새 연구원 추가</button>
+                <input type="text" id="members-search" placeholder="검색..." style="flex: 1; padding: 0.5rem; border-radius: 5px; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border);" oninput="searchTable('members')">
+            </div>
+            <table id="members-table">
+                <thead>
+                    <tr>
+                        <th>성명</th>
+                        <th>직무</th>
+                        <th>현재프로젝트수</th>
+                        <th>완료업무</th>
+                        <th>일정준수율(%)</th>
+                        <th>보유기술</th>
+                        <th>작업</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- VOC 탭 -->
+        <div id="voc" class="tab-content">
+            <h2>VOC 관리</h2>
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <button class="btn" onclick="openModal('voc')">+ 새 VOC 추가</button>
+                <input type="text" id="voc-search" placeholder="검색..." style="flex: 1; padding: 0.5rem; border-radius: 5px; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border);" oninput="searchTable('voc')">
+            </div>
+            <table id="voc-table">
+                <thead>
+                    <tr>
+                        <th>접수일</th>
+                        <th>출처</th>
+                        <th>제품명</th>
+                        <th>내용</th>
+                        <th>우선순위</th>
+                        <th>반영여부</th>
+                        <th>담당자</th>
+                        <th>후속담당자</th>
+                        <th>작업</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- 베이스라인 탭 -->
+        <div id="baseline" class="tab-content">
+            <h2>베이스라인 자료관리</h2>
+            <button class="btn" onclick="openModal('baseline')">+ 새 베이스라인 추가</button>
+            <div id="baseline-list" style="margin-top: 1rem;"></div>
+        </div>
+    </div>
+
+    <!-- 모달 -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">항목 추가</h2>
+            <form id="modal-form">
+                <div id="form-fields"></div>
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button type="submit" class="btn">저장</button>
+                    <button type="button" class="btn btn-danger" onclick="closeModal()">취소</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 설정 ====================
+        const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxKbqKkOjZJabE0XeujaQoXnwXg_Q5loflXmKyr4NFVP_sirlNMQysi15jDQplB4L8/exec';
+        const SHEETS = { LEADTIME: '리드타임', MEMBERS: '연구원', VOC: 'VOC', BASELINES: '베이스라인' };
+        
+        // ==================== 데이터 ====================
+        let DATA = { leadtime: [], members: [], voc: [], baselines: [] };
+        let currentType = null;
+        let currentIndex = null;
+        
+        // ==================== API ====================
+        class API {
+            constructor(url) {
+                this.url = url;
+            }
+            
+            async readAll() {
+                showLoading(true);
+                try {
+                    const res = await fetch(`${this.url}?action=readAll&t=${Date.now()}`);
+                    const data = await res.json();
+                    showLoading(false);
+                    return data.data || {};
+                } catch (e) {
+                    showLoading(false);
+                    alert('로드 실패: ' + e.message);
+                    return {};
+                }
+            }
+            
+            async write(sheet, data) {
+                showSync('저장 중...');
+                try {
+                    const fd = new FormData();
+                    fd.append('action', 'write');
+                    fd.append('sheet', sheet);
+                    fd.append('data', JSON.stringify(data));
+                    await fetch(this.url, { method: 'POST', body: fd });
+                    showSync('저장 완료');
+                    setTimeout(() => showSync('동기화됨'), 1500);
+                } catch (e) {
+                    showSync('저장 실패');
+                    console.error(e);
+                }
+            }
+        }
+        
+        const api = new API(WEBAPP_URL);
+        
+        // ==================== 데이터 로드 ====================
+        async function loadData() {
+            const sheets = await api.readAll();
+            DATA.leadtime = sheets[SHEETS.LEADTIME] || [];
+            DATA.members = sheets[SHEETS.MEMBERS] || [];
+            DATA.voc = sheets[SHEETS.VOC] || [];
+            
+            // 베이스라인 처리
+            const rawBase = sheets[SHEETS.BASELINES] || [];
+            const baseMap = {};
+            rawBase.forEach(r => {
+                const key = `${r.프로젝트명}_${r.베이스라인}`;
+                if (!baseMap[key]) {
+                    baseMap[key] = { 프로젝트명: r.프로젝트명, 베이스라인: r.베이스라인, 자료: [] };
+                }
+                if (r.파일명) {
+                    baseMap[key].자료.push({
+                        구분: r.구분, 파일명: r.파일명, 버전: r.버전,
+                        상태: r.상태, 승인자: r.승인자, 업데이트일: r.업데이트일
+                    });
+                }
+            });
+            DATA.baselines = Object.values(baseMap);
+            
+            // 통계 계산
+            updateStats();
+            
+            // 테이블 렌더링
+            renderTable('leadtime');
+            renderTable('members');
+            renderTable('voc');
+            renderBaselines();
+            renderGantt();
+            updateProjectSelect();
+            
+            document.getElementById('sync-status').classList.add('active');
+        }
+        
+        // ==================== 테이블 렌더링 ====================
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            const year = String(d.getFullYear()).slice(2);
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        function renderTable(type) {
+            const tbody = document.querySelector(`#${type}-table tbody`);
+            tbody.innerHTML = '';
+            
+            DATA[type].forEach((item, idx) => {
+                const row = tbody.insertRow();
+                
+                if (type === 'leadtime') {
+                    row.innerHTML = `
+                        <td>${item.프로젝트 || ''}</td>
+                        <td>${item.업무명 || ''}</td>
+                        <td>${item.분야 || ''}</td>
+                        <td>${item.담당자 || ''}</td>
+                        <td>${formatDate(item.업무착수일)}</td>
+                        <td>${formatDate(item.완료예정일)}</td>
+                        <td>${formatDate(item.실제완료일)}</td>
+                        <td>${item['리드타임(일)'] || ''}</td>
+                        <td>
+                            <button class="btn btn-sm" onclick="editItem('${type}', ${idx})">수정</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteItem('${type}', ${idx})">삭제</button>
+                        </td>
+                    `;
+                } else if (type === 'members') {
+                    row.innerHTML = `
+                        <td>${item.성명 || ''}</td>
+                        <td>${item.직무 || ''}</td>
+                        <td>${item.현재프로젝트수 || ''}</td>
+                        <td>${item.누적완료업무 || ''}</td>
+                        <td>${item['일정준수율(%)'] || ''}</td>
+                        <td>${item.보유기술 || ''}</td>
+                        <td>
+                            <button class="btn btn-sm" onclick="editItem('${type}', ${idx})">수정</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteItem('${type}', ${idx})">삭제</button>
+                        </td>
+                    `;
+                } else if (type === 'voc') {
+                    row.innerHTML = `
+                        <td>${formatDate(item.접수일)}</td>
+                        <td>${item.출처 || ''}</td>
+                        <td>${item.제품명 || ''}</td>
+                        <td>${item['불만/제안내용'] || ''}</td>
+                        <td>${item.우선순위 || ''}</td>
+                        <td>${item.반영여부 || ''}</td>
+                        <td>${item.담당자 || ''}</td>
+                        <td>${item.후속담당자 || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm" onclick="editItem('${type}', ${idx})">수정</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteItem('${type}', ${idx})">삭제</button>
+                        </td>
+                    `;
+                }
+            });
+        }
+        
+        // ==================== 통계 업데이트 ====================
+        function updateStats() {
+            DATA.members.forEach(member => {
+                // 해당 연구원이 담당한 모든 업무
+                const tasks = DATA.leadtime.filter(t => t.담당자 === member.성명);
+                
+                // 현재 진행중인 프로젝트 수 (완료되지 않은 프로젝트)
+                const ongoingProjects = new Set(
+                    tasks.filter(t => !t.실제완료일).map(t => t.프로젝트)
+                ).size;
+                member.현재프로젝트수 = ongoingProjects;
+                
+                // 완료된 업무
+                const completed = tasks.filter(t => t.실제완료일);
+                member.누적완료업무 = completed.length;
+                
+                // 일정준수율 계산: 완료예정일 안에 끝낸 업무 / 전체 완료된 업무
+                if (completed.length > 0) {
+                    const onTime = completed.filter(t => {
+                        const actualDate = new Date(t.실제완료일);
+                        const plannedDate = new Date(t.완료예정일);
+                        return actualDate <= plannedDate;
+                    }).length;
+                    member['일정준수율(%)'] = Math.round((onTime / completed.length) * 100);
+                } else {
+                    member['일정준수율(%)'] = 0;
+                }
+            });
+        }
+        
+        // ==================== 탭 전환 ====================
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab).classList.add('active');
+        }
+
+        // ==================== 간트차트 ====================
+        function updateProjectSelect() {
+            const select = document.getElementById('project-select');
+            const projects = [...new Set(DATA.leadtime.map(t => t.프로젝트))].filter(Boolean);
+            
+            select.innerHTML = '<option value="">전체 프로젝트</option>';
+            projects.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = p;
+                select.appendChild(opt);
+            });
+        }
+
+        function renderGantt() {
+            const container = document.getElementById('gantt-chart');
+            const selectedProject = document.getElementById('project-select').value;
+            const searchTerm = document.getElementById('gantt-search').value.toLowerCase();
+            
+            let tasks = DATA.leadtime.filter(t => t.업무착수일 && t.완료예정일);
+            
+            // 프로젝트 필터링
+            if (selectedProject) {
+                tasks = tasks.filter(t => t.프로젝트 === selectedProject);
+            }
+            
+            // 검색 필터링
+            if (searchTerm) {
+                tasks = tasks.filter(t => 
+                    (t.프로젝트 || '').toLowerCase().includes(searchTerm) ||
+                    (t.업무명 || '').toLowerCase().includes(searchTerm) ||
+                    (t.담당자 || '').toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            if (tasks.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted); padding: 2rem;">표시할 데이터가 없습니다.</p>';
+                return;
+            }
+            
+            // 날짜 범위 계산
+            const dates = tasks.flatMap(t => [
+                new Date(t.업무착수일),
+                new Date(t.완료예정일),
+                ...(t.실제완료일 ? [new Date(t.실제완료일)] : [])
+            ]);
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+            minDate.setDate(minDate.getDate() - 3); // 여유 공간
+            maxDate.setDate(maxDate.getDate() + 3);
+            const totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)) + 1;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // 오늘 날짜 위치 계산
+            const todayOffset = Math.ceil((today - minDate) / (1000 * 60 * 60 * 24));
+            const todayPercent = (todayOffset / totalDays) * 100;
+            
+            let html = '<div class="gantt-container">';
+            
+            // 헤더
+            html += '<div class="gantt-row" style="font-weight: 600; background: var(--bg-card); position: sticky; top: 0; z-index: 10;">';
+            html += '<div>프로젝트/업무</div><div>담당자</div><div>상태</div><div style="position: relative;">일정 타임라인';
+            
+            // 오늘 날짜 라인 (헤더에도 표시)
+            if (todayPercent >= 0 && todayPercent <= 100) {
+                html += `<div style="position: absolute; left: ${todayPercent}%; top: 20px; bottom: 0; width: 2px; background: linear-gradient(180deg, rgba(253, 203, 110, 0.9), rgba(253, 203, 110, 0.3)); z-index: 5; box-shadow: 0 0 8px rgba(253, 203, 110, 0.6);"></div>`;
+                html += `<div style="position: absolute; left: ${todayPercent}%; top: 0; transform: translateX(-50%); font-size: 0.8rem; color: var(--warning); font-weight: 700; background: var(--bg-card); padding: 0.2rem 0.6rem; border-radius: 3px; border: 1px solid var(--warning); white-space: nowrap;">오늘</div>`;
+            }
+            
+            html += '</div></div>';
+            
+            // 각 작업
+            tasks.forEach(task => {
+                const start = new Date(task.업무착수일);
+                const plannedEnd = new Date(task.완료예정일);
+                const actualEnd = task.실제완료일 ? new Date(task.실제완료일) : null;
+                
+                start.setHours(0, 0, 0, 0);
+                plannedEnd.setHours(0, 0, 0, 0);
+                if (actualEnd) actualEnd.setHours(0, 0, 0, 0);
+                
+                const startOffset = Math.ceil((start - minDate) / (1000 * 60 * 60 * 24));
+                const plannedDuration = Math.ceil((plannedEnd - start) / (1000 * 60 * 60 * 24)) + 1;
+                const leftPercent = Math.max(0, Math.min(100, (startOffset / totalDays) * 100));
+                const plannedWidth = Math.max(1, Math.min(100 - leftPercent, (plannedDuration / totalDays) * 100));
+                
+                // 상태 판단
+                let status, statusColor, statusIcon;
+                let isCompleted = !!actualEnd;
+                let isDelayed = !isCompleted && today > plannedEnd;
+                let isOngoing = !isCompleted && today >= start && today <= plannedEnd;
+                let isPending = !isCompleted && today < start;
+                
+                if (isCompleted) {
+                    status = '✓ 완료';
+                    statusColor = 'var(--success)';
+                    statusIcon = '●';
+                } else if (isDelayed) {
+                    const delayDays = Math.ceil((today - plannedEnd) / (1000 * 60 * 60 * 24));
+                    status = `지연 ${delayDays}일`;
+                    statusColor = 'var(--danger)';
+                    statusIcon = '■';
+                } else if (isOngoing) {
+                    const totalDuration = Math.ceil((plannedEnd - start) / (1000 * 60 * 60 * 24));
+                    const elapsed = Math.ceil((today - start) / (1000 * 60 * 60 * 24));
+                    const progress = Math.min(100, Math.round((elapsed / totalDuration) * 100));
+                    status = `진행 ${progress}%`;
+                    statusColor = 'var(--primary)';
+                    statusIcon = '▶';
+                } else {
+                    status = '대기';
+                    statusColor = 'var(--text-muted)';
+                    statusIcon = '○';
+                }
+                
+                html += '<div class="gantt-row">';
+                html += `<div><strong>${task.업무명 || '-'}</strong><br><small style="color: var(--text-muted);">${task.프로젝트 || ''}</small></div>`;
+                html += `<div>${task.담당자 || '-'}</div>`;
+                html += `<div style="color: ${statusColor}; font-weight: 600;"><span style="font-size: 1.2rem;">${statusIcon}</span> ${status}</div>`;
+                html += '<div class="gantt-bar-container" style="position: relative;">';
+                
+                // 오늘 날짜 라인
+                if (todayPercent >= 0 && todayPercent <= 100) {
+                    html += `<div style="position: absolute; left: ${todayPercent}%; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, rgba(253, 203, 110, 0.9), rgba(253, 203, 110, 0.3)); z-index: 3; box-shadow: 0 0 6px rgba(253, 203, 110, 0.5);"></div>`;
+                }
+                
+                // 계획 막대 (하단, 얇고 회색)
+                html += `<div style="position: absolute; left: ${leftPercent}%; width: ${plannedWidth}%; height: 40%; bottom: 0; background: #6c757d; opacity: 0.4; border-radius: 3px; z-index: 1;"></div>`;
+                
+                // 실제 막대 (상단, 굵고 선명)
+                if (isCompleted) {
+                    const actualDuration = Math.ceil((actualEnd - start) / (1000 * 60 * 60 * 24)) + 1;
+                    const actualWidth = Math.max(1, Math.min(100 - leftPercent, (actualDuration / totalDays) * 100));
+                    const dateText = `${formatDate(task.업무착수일)} ~ ${formatDate(actualEnd)}`;
+                    const isShort = actualWidth < 15;
+                    
+                    if (isShort) {
+                        // 왼쪽 공간이 충분하면 왼쪽에, 아니면 오른쪽에 배치
+                        if (leftPercent > 20) {
+                            html += `<div style="position: absolute; left: ${leftPercent}%; top: 30%; transform: translate(-105%, -50%); font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; z-index: 2;">${dateText}</div>`;
+                        } else {
+                            html += `<div style="position: absolute; left: ${leftPercent + actualWidth}%; top: 30%; transform: translate(5%, -50%); font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; z-index: 2;">${dateText}</div>`;
+                        }
+                    }
+                    
+                    html += `<div style="position: absolute; left: ${leftPercent}%; width: ${actualWidth}%; height: 60%; top: 0; background: linear-gradient(90deg, var(--success), #20c997); border-radius: 5px; z-index: 2; box-shadow: 0 2px 8px rgba(0, 184, 148, 0.3); display: flex; align-items: center; padding: 0 0.5rem;">`;
+                    if (!isShort) {
+                        html += `<span style="font-size: 0.85rem; font-weight: 600; color: white;">${dateText}</span>`;
+                    }
+                    html += '</div>';
+                } else if (isDelayed) {
+                    const dateText = `${formatDate(start)} ~ ${formatDate(plannedEnd)}`;
+                    const isShort = plannedWidth < 15;
+                    
+                    if (isShort) {
+                        if (leftPercent > 20) {
+                            html += `<div style="position: absolute; left: ${leftPercent}%; top: 30%; transform: translate(-105%, -50%); font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; z-index: 2;">${dateText}</div>`;
+                        } else {
+                            html += `<div style="position: absolute; left: ${leftPercent + plannedWidth}%; top: 30%; transform: translate(5%, -50%); font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; z-index: 2;">${dateText}</div>`;
+                        }
+                    }
+                    
+                    html += `<div style="position: absolute; left: ${leftPercent}%; width: ${plannedWidth}%; height: 60%; top: 0; background: linear-gradient(90deg, var(--danger), #ff6b6b); border-radius: 5px; z-index: 2; box-shadow: 0 2px 8px rgba(214, 48, 49, 0.3); animation: blink 2s infinite; display: flex; align-items: center; padding: 0 0.5rem;">`;
+                    if (!isShort) {
+                        html += `<span style="font-size: 0.85rem; font-weight: 600; color: white;">${dateText}</span>`;
+                    }
+                    html += '</div>';
+                } else if (isOngoing) {
+                    const elapsedDays = Math.ceil((today - start) / (1000 * 60 * 60 * 24));
+                    const elapsedWidth = Math.max(1, (elapsedDays / totalDays) * 100);
+                    const dateText = `${formatDate(start)} ~ ${formatDate(plannedEnd)}`;
+                    const isShort = elapsedWidth < 15;
+                    
+                    if (isShort) {
+                        if (leftPercent > 20) {
+                            html += `<div style="position: absolute; left: ${leftPercent}%; top: 30%; transform: translate(-105%, -50%); font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; z-index: 2;">${dateText}</div>`;
+                        } else {
+                            html += `<div style="position: absolute; left: ${leftPercent + elapsedWidth}%; top: 30%; transform: translate(5%, -50%); font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; z-index: 2;">${dateText}</div>`;
+                        }
+                    }
+                    
+                    html += `<div style="position: absolute; left: ${leftPercent}%; width: ${elapsedWidth}%; height: 60%; top: 0; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 5px; z-index: 2; box-shadow: 0 2px 8px rgba(0, 102, 255, 0.3); display: flex; align-items: center; padding: 0 0.5rem;">`;
+                    if (!isShort) {
+                        html += `<span style="font-size: 0.85rem; font-weight: 600; color: white;">${dateText}</span>`;
+                    }
+                    html += '</div>';
+                } else {
+                    const dateText = `${formatDate(start)} ~ ${formatDate(plannedEnd)}`;
+                    const isShort = plannedWidth < 15;
+                    
+                    if (isShort) {
+                        if (leftPercent > 20) {
+                            html += `<div style="position: absolute; left: ${leftPercent}%; top: 30%; transform: translate(-105%, -50%); font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; z-index: 2;">${dateText}</div>`;
+                        } else {
+                            html += `<div style="position: absolute; left: ${leftPercent + plannedWidth}%; top: 30%; transform: translate(5%, -50%); font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; z-index: 2;">${dateText}</div>`;
+                        }
+                    }
+                    
+                    html += `<div style="position: absolute; left: ${leftPercent}%; width: ${plannedWidth}%; height: 60%; top: 0; background: linear-gradient(90deg, #6c757d, #adb5bd); border-radius: 5px; z-index: 2; display: flex; align-items: center; padding: 0 0.5rem;">`;
+                    if (!isShort) {
+                        html += `<span style="font-size: 0.85rem; font-weight: 600; color: white;">${dateText}</span>`;
+                    }
+                    html += '</div>';
+                }
+                
+                html += '</div></div>';
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // ==================== 베이스라인 ====================
+        function renderBaselines() {
+            const container = document.getElementById('baseline-list');
+            
+            if (DATA.baselines.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted); padding: 2rem; font-size: 1.1rem;">등록된 베이스라인이 없습니다.</p>';
+                return;
+            }
+            
+            let html = '';
+            DATA.baselines.forEach((baseline, idx) => {
+                html += '<div class="baseline-item">';
+                html += '<div class="baseline-header">';
+                html += `<div>`;
+                html += `<h3 style="font-size: 1.3rem; margin-bottom: 0.3rem;">${baseline.프로젝트명}</h3>`;
+                html += `<p style="color: var(--text-secondary); font-size: 1rem;">${baseline.베이스라인}</p>`;
+                html += `</div>`;
+                html += `<div style="display: flex; gap: 0.5rem;">`;
+                html += `<button class="btn btn-sm" onclick="editBaseline(${idx})">수정</button>`;
+                html += `<button class="btn btn-sm btn-danger" onclick="deleteBaseline(${idx})">삭제</button>`;
+                html += `</div>`;
+                html += '</div>';
+                
+                if (baseline.자료 && baseline.자료.length > 0) {
+                    baseline.자료.forEach((doc, docIdx) => {
+                        const statusColors = {
+                            '작성중': 'var(--warning)',
+                            '검토중': 'var(--primary)',
+                            '승인완료': 'var(--success)'
+                        };
+                        const statusColor = statusColors[doc.상태] || 'var(--text-muted)';
+                        
+                        html += '<div class="doc-item" style="padding: 1rem; margin: 0.8rem 0;">';
+                        html += '<div style="flex: 1;">';
+                        html += `<div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">`;
+                        html += `<strong style="font-size: 1.1rem;">${doc.파일명}</strong>`;
+                        html += `<span style="background: var(--bg-elevated); padding: 0.3rem 0.8rem; border-radius: 5px; font-size: 0.9rem;">v${doc.버전}</span>`;
+                        html += `</div>`;
+                        html += `<div style="display: flex; gap: 2rem; margin-top: 0.5rem; font-size: 1rem;">`;
+                        html += `<span style="color: var(--text-secondary);">📋 <strong style="color: var(--text-primary);">${doc.구분}</strong></span>`;
+                        html += `<span style="color: ${statusColor}; font-weight: 600;">● ${doc.상태}</span>`;
+                        html += `<span style="color: var(--text-secondary);">👤 <strong style="color: var(--text-primary);">${doc.승인자}</strong></span>`;
+                        html += `<span style="color: var(--text-secondary);">📅 ${formatDate(doc.업데이트일)}</span>`;
+                        html += `</div>`;
+                        html += '</div>';
+                        html += '<div style="display: flex; gap: 0.5rem;">';
+                        html += `<button class="btn btn-sm" onclick="editDoc(${idx}, ${docIdx})">수정</button>`;
+                        html += `<button class="btn btn-sm btn-danger" onclick="deleteDoc(${idx}, ${docIdx})">삭제</button>`;
+                        html += '</div></div>';
+                    });
+                }
+                
+                html += `<button class="btn btn-sm" onclick="openDocModal(${idx})" style="margin-top: 0.8rem; font-size: 1rem;">+ 자료 추가</button>`;
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        async function deleteBaseline(idx) {
+            if (confirm('정말 삭제하시겠습니까?')) {
+                DATA.baselines.splice(idx, 1);
+                await saveBaselines();
+                renderBaselines();
+            }
+        }
+
+        function editBaseline(idx) {
+            currentType = 'baseline';
+            currentIndex = idx;
+            
+            const modal = document.getElementById('modal');
+            const title = document.getElementById('modal-title');
+            const fields = document.getElementById('form-fields');
+            
+            title.textContent = '베이스라인 수정';
+            fields.innerHTML = '';
+            
+            const baseline = DATA.baselines[idx];
+            const fieldConfigs = [
+                { name: '프로젝트명', key: '프로젝트명', type: 'text' },
+                { name: '베이스라인', key: '베이스라인', type: 'text' }
+            ];
+            
+            fieldConfigs.forEach(field => {
+                const group = document.createElement('div');
+                group.className = 'form-group';
+                
+                const label = document.createElement('label');
+                label.className = 'form-label';
+                label.textContent = field.name;
+                
+                const input = document.createElement('input');
+                input.type = field.type;
+                input.className = 'form-input';
+                input.name = field.key;
+                input.value = baseline[field.key] || '';
+                
+                group.appendChild(label);
+                group.appendChild(input);
+                fields.appendChild(group);
+            });
+            
+            modal.classList.add('active');
+        }
+
+        async function deleteDoc(baseIdx, docIdx) {
+            if (confirm('정말 삭제하시겠습니까?')) {
+                DATA.baselines[baseIdx].자료.splice(docIdx, 1);
+                await saveBaselines();
+                renderBaselines();
+            }
+        }
+
+        async function saveBaselines() {
+            const flat = [];
+            DATA.baselines.forEach(b => {
+                if (b.자료 && b.자료.length > 0) {
+                    b.자료.forEach(d => {
+                        flat.push({
+                            프로젝트명: b.프로젝트명,
+                            베이스라인: b.베이스라인,
+                            구분: d.구분,
+                            파일명: d.파일명,
+                            버전: d.버전,
+                            상태: d.상태,
+                            승인자: d.승인자,
+                            업데이트일: d.업데이트일
+                        });
+                    });
+                } else {
+                    // 자료가 없는 베이스라인도 저장
+                    flat.push({
+                        프로젝트명: b.프로젝트명,
+                        베이스라인: b.베이스라인,
+                        구분: '',
+                        파일명: '',
+                        버전: '',
+                        상태: '',
+                        승인자: '',
+                        업데이트일: ''
+                    });
+                }
+            });
+            await api.write(SHEETS.BASELINES, flat);
+        }
+        
+        // ==================== 검색 ====================
+        function searchTable(type) {
+            const searchTerm = document.getElementById(`${type}-search`).value.toLowerCase();
+            const table = document.getElementById(`${type}-table`);
+            const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+            
+            for (let row of rows) {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            }
+        }
+
+        // ==================== 탭 전환 (구 위치) ====================
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab).classList.add('active');
+        }
+        
+        // ==================== 모달 ====================
+        function openModal(type, index = null) {
+            currentType = type;
+            currentIndex = index;
+            
+            const modal = document.getElementById('modal');
+            const title = document.getElementById('modal-title');
+            const fields = document.getElementById('form-fields');
+            
+            title.textContent = index !== null ? '항목 수정' : '항목 추가';
+            fields.innerHTML = '';
+            
+            const item = index !== null ? DATA[type][index] : {};
+            
+            const fieldConfigs = {
+                leadtime: [
+                    { name: '프로젝트', key: '프로젝트', type: 'text' },
+                    { name: '업무명', key: '업무명', type: 'text' },
+                    { name: '분야', key: '분야', type: 'select', options: ['HW', 'FW', 'APP', 'PCB', 'QA'] },
+                    { name: '담당자', key: '담당자', type: 'select', options: DATA.members.map(m => m.성명) },
+                    { name: '업무착수일', key: '업무착수일', type: 'date', required: true, max: 'today' },
+                    { name: '완료예정일', key: '완료예정일', type: 'date', required: true },
+                    { name: '실제완료일', key: '실제완료일', type: 'date', max: 'today' },
+                    { name: '리드타임(일)', key: '리드타임(일)', type: 'number', readonly: true },
+                    { name: '지연사유', key: '지연사유', type: 'text' },
+                    { name: '결과물', key: '결과물', type: 'text' }
+                ],
+                members: [
+                    { name: '성명', key: '성명', type: 'text', required: true },
+                    { name: '직무', key: '직무', type: 'text', required: true },
+                    { name: '보유기술', key: '보유기술', type: 'text' },
+                    { name: '비고', key: '비고', type: 'text' }
+                ],
+                voc: [
+                    { name: '접수일', key: '접수일', type: 'date', required: true, max: 'today' },
+                    { name: '출처', key: '출처', type: 'select', options: ['고객', '생산팀', '영업팀', 'QA팀'], required: true },
+                    { name: '제품명', key: '제품명', type: 'text', required: true },
+                    { name: '불만/제안내용', key: '불만/제안내용', type: 'text', required: true },
+                    { name: '우선순위', key: '우선순위', type: 'select', options: ['상', '중', '하'], required: true },
+                    { name: '반영여부', key: '반영여부', type: 'select', options: ['검토중', '반영예정', '반영완료', '미반영'], required: true },
+                    { name: '담당자', key: '담당자', type: 'select', options: ['생산팀', '경영지원팀', '연구소', '영업팀', 'QA팀'].concat(DATA.members.map(m => m.성명)), required: true },
+                    { name: '후속담당자', key: '후속담당자', type: 'text', placeholder: '2차, 3차 담당자 (선택)' }
+                ],
+                baseline: [
+                    { name: '프로젝트명', key: '프로젝트명', type: 'text' },
+                    { name: '베이스라인', key: '베이스라인', type: 'text' }
+                ],
+                doc: [
+                    { name: '구분', key: '구분', type: 'select', options: ['요구사항', '설계서', '코드', '테스트', '매뉴얼'] },
+                    { name: '파일명', key: '파일명', type: 'text' },
+                    { name: '버전', key: '버전', type: 'text' },
+                    { name: '상태', key: '상태', type: 'select', options: ['작성중', '검토중', '승인완료'] },
+                    { name: '승인자', key: '승인자', type: 'text' },
+                    { name: '업데이트일', key: '업데이트일', type: 'date' }
+                ]
+            };
+            
+            fieldConfigs[type].forEach(field => {
+                const group = document.createElement('div');
+                group.className = 'form-group';
+                
+                const label = document.createElement('label');
+                label.className = 'form-label';
+                label.textContent = field.name;
+                
+                let input;
+                if (field.type === 'select') {
+                    input = document.createElement('select');
+                    input.className = 'form-select';
+                    const emptyOpt = document.createElement('option');
+                    emptyOpt.value = '';
+                    emptyOpt.textContent = '선택하세요';
+                    input.appendChild(emptyOpt);
+                    
+                    field.options.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt;
+                        option.textContent = opt;
+                        input.appendChild(option);
+                    });
+                } else {
+                    input = document.createElement('input');
+                    input.type = field.type;
+                    input.className = 'form-input';
+                    if (field.readonly) input.readOnly = true;
+                    if (field.required) input.required = true;
+                    if (field.placeholder) input.placeholder = field.placeholder;
+                    
+                    // 날짜 필드에 max 속성 설정
+                    if (field.type === 'date' && field.max === 'today') {
+                        const today = new Date();
+                        const yyyy = today.getFullYear();
+                        const mm = String(today.getMonth() + 1).padStart(2, '0');
+                        const dd = String(today.getDate()).padStart(2, '0');
+                        input.max = `${yyyy}-${mm}-${dd}`;
+                    }
+                }
+                
+                input.name = field.key;
+                input.value = item[field.key] || '';
+                
+                // 날짜 필드의 경우 YYYY-MM-DD 형식으로 변환
+                if (field.type === 'date' && item[field.key]) {
+                    const dateValue = new Date(item[field.key]);
+                    if (!isNaN(dateValue.getTime())) {
+                        const yyyy = dateValue.getFullYear();
+                        const mm = String(dateValue.getMonth() + 1).padStart(2, '0');
+                        const dd = String(dateValue.getDate()).padStart(2, '0');
+                        input.value = `${yyyy}-${mm}-${dd}`;
+                    }
+                }
+                
+                // 리드타임 자동 계산
+                if (type === 'leadtime' && (field.key === '업무착수일' || field.key === '실제완료일')) {
+                    input.addEventListener('change', calculateLeadtime);
+                }
+                
+                group.appendChild(label);
+                group.appendChild(input);
+                fields.appendChild(group);
+            });
+            
+            modal.classList.add('active');
+        }
+        
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            document.getElementById('modal-form').reset();
+        }
+
+        // 베이스라인 자료 추가 모달
+        let currentBaselineIdx = null;
+        
+        function openDocModal(baseIdx) {
+            currentType = 'doc';
+            currentBaselineIdx = baseIdx;
+            currentIndex = null;
+            
+            const modal = document.getElementById('modal');
+            const title = document.getElementById('modal-title');
+            const fields = document.getElementById('form-fields');
+            
+            title.textContent = '자료 추가';
+            fields.innerHTML = '';
+            
+            const fieldConfigs = [
+                { name: '구분', key: '구분', type: 'select', options: ['요구사항', '설계서', '코드', '테스트', '매뉴얼'] },
+                { name: '파일명', key: '파일명', type: 'text' },
+                { name: '버전', key: '버전', type: 'text', placeholder: '예: 1.0, 2.1 (V 자동 추가됨)' },
+                { name: '상태', key: '상태', type: 'select', options: ['작성중', '검토중', '승인완료'] },
+                { name: '승인자', key: '승인자', type: 'text' },
+                { name: '업데이트일', key: '업데이트일', type: 'date' }
+            ];
+            
+            fieldConfigs.forEach(field => {
+                const group = document.createElement('div');
+                group.className = 'form-group';
+                
+                const label = document.createElement('label');
+                label.className = 'form-label';
+                label.textContent = field.name;
+                
+                let input;
+                if (field.type === 'select') {
+                    input = document.createElement('select');
+                    input.className = 'form-select';
+                    const emptyOpt = document.createElement('option');
+                    emptyOpt.value = '';
+                    emptyOpt.textContent = '선택하세요';
+                    input.appendChild(emptyOpt);
+                    
+                    field.options.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt;
+                        option.textContent = opt;
+                        input.appendChild(option);
+                    });
+                } else {
+                    input = document.createElement('input');
+                    input.type = field.type;
+                    input.className = 'form-input';
+                    if (field.placeholder) input.placeholder = field.placeholder;
+                    
+                    // 날짜 필드에 max 속성 설정
+                    if (field.type === 'date') {
+                        const today = new Date();
+                        const yyyy = today.getFullYear();
+                        const mm = String(today.getMonth() + 1).padStart(2, '0');
+                        const dd = String(today.getDate()).padStart(2, '0');
+                        input.max = `${yyyy}-${mm}-${dd}`;
+                    }
+                }
+                
+                input.name = field.key;
+                
+                // 버전 필드에 미리보기 추가
+                if (field.key === '버전') {
+                    const preview = document.createElement('div');
+                    preview.style.cssText = 'margin-top: 0.5rem; font-size: 0.9rem; color: var(--primary); font-weight: 600;';
+                    preview.id = 'version-preview';
+                    
+                    input.addEventListener('input', (e) => {
+                        let value = e.target.value.trim();
+                        // V, v, Ver, ver 제거
+                        value = value.replace(/^(V|v|Ver|ver\.?)\s*/i, '');
+                        if (value) {
+                            preview.textContent = `📋 표시될 버전: v${value}`;
+                        } else {
+                            preview.textContent = '';
+                        }
+                    });
+                    
+                    group.appendChild(label);
+                    group.appendChild(input);
+                    group.appendChild(preview);
+                } else {
+                    group.appendChild(label);
+                    group.appendChild(input);
+                }
+                
+                fields.appendChild(group);
+            });
+            
+            modal.classList.add('active');
+        }
+
+        function editDoc(baseIdx, docIdx) {
+            currentType = 'doc';
+            currentBaselineIdx = baseIdx;
+            currentIndex = docIdx;
+            
+            const modal = document.getElementById('modal');
+            const title = document.getElementById('modal-title');
+            const fields = document.getElementById('form-fields');
+            
+            title.textContent = '자료 수정';
+            fields.innerHTML = '';
+            
+            const doc = DATA.baselines[baseIdx].자료[docIdx];
+            
+            const fieldConfigs = [
+                { name: '구분', key: '구분', type: 'select', options: ['요구사항', '설계서', '코드', '테스트', '매뉴얼'] },
+                { name: '파일명', key: '파일명', type: 'text' },
+                { name: '버전', key: '버전', type: 'text', placeholder: '예: 1.0, 2.1 (V 자동 추가됨)' },
+                { name: '상태', key: '상태', type: 'select', options: ['작성중', '검토중', '승인완료'] },
+                { name: '승인자', key: '승인자', type: 'text' },
+                { name: '업데이트일', key: '업데이트일', type: 'date' }
+            ];
+            
+            fieldConfigs.forEach(field => {
+                const group = document.createElement('div');
+                group.className = 'form-group';
+                
+                const label = document.createElement('label');
+                label.className = 'form-label';
+                label.textContent = field.name;
+                
+                let input;
+                if (field.type === 'select') {
+                    input = document.createElement('select');
+                    input.className = 'form-select';
+                    field.options.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt;
+                        option.textContent = opt;
+                        input.appendChild(option);
+                    });
+                } else {
+                    input = document.createElement('input');
+                    input.type = field.type;
+                    input.className = 'form-input';
+                    if (field.placeholder) input.placeholder = field.placeholder;
+                    
+                    // 날짜 필드에 max 속성 설정
+                    if (field.type === 'date') {
+                        const today = new Date();
+                        const yyyy = today.getFullYear();
+                        const mm = String(today.getMonth() + 1).padStart(2, '0');
+                        const dd = String(today.getDate()).padStart(2, '0');
+                        input.max = `${yyyy}-${mm}-${dd}`;
+                    }
+                }
+                
+                input.name = field.key;
+                input.value = doc[field.key] || '';
+                
+                // 날짜 필드의 경우 YYYY-MM-DD 형식으로 변환
+                if (field.type === 'date' && doc[field.key]) {
+                    const dateValue = new Date(doc[field.key]);
+                    if (!isNaN(dateValue.getTime())) {
+                        const yyyy = dateValue.getFullYear();
+                        const mm = String(dateValue.getMonth() + 1).padStart(2, '0');
+                        const dd = String(dateValue.getDate()).padStart(2, '0');
+                        input.value = `${yyyy}-${mm}-${dd}`;
+                    }
+                }
+                
+                // 버전 필드에 미리보기 추가
+                if (field.key === '버전') {
+                    const preview = document.createElement('div');
+                    preview.style.cssText = 'margin-top: 0.5rem; font-size: 0.9rem; color: var(--primary); font-weight: 600;';
+                    preview.id = 'version-preview';
+                    
+                    // 기존 값 미리보기
+                    if (input.value) {
+                        let cleanValue = input.value.replace(/^(V|v|Ver|ver\.?)\s*/i, '');
+                        preview.textContent = `📋 표시될 버전: v${cleanValue}`;
+                    }
+                    
+                    input.addEventListener('input', (e) => {
+                        let value = e.target.value.trim();
+                        value = value.replace(/^(V|v|Ver|ver\.?)\s*/i, '');
+                        if (value) {
+                            preview.textContent = `📋 표시될 버전: v${value}`;
+                        } else {
+                            preview.textContent = '';
+                        }
+                    });
+                    
+                    group.appendChild(label);
+                    group.appendChild(input);
+                    group.appendChild(preview);
+                } else {
+                    group.appendChild(label);
+                    group.appendChild(input);
+                }
+                
+                fields.appendChild(group);
+            });
+            
+            modal.classList.add('active');
+        }
+        
+        function calculateLeadtime() {
+            const start = document.querySelector('[name="업무착수일"]').value;
+            const end = document.querySelector('[name="실제완료일"]').value;
+            if (start && end) {
+                const days = Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24));
+                document.querySelector('[name="리드타임(일)"]').value = days;
+            }
+        }
+        
+        // ==================== CRUD ====================
+        function editItem(type, index) {
+            openModal(type, index);
+        }
+        
+        async function deleteItem(type, index) {
+            if (confirm('정말 삭제하시겠습니까?')) {
+                DATA[type].splice(index, 1);
+                
+                // 리드타임 삭제 시 연구원 통계 업데이트
+                if (type === 'leadtime') {
+                    updateStats();
+                    await api.write(SHEETS.MEMBERS, DATA.members);
+                    renderTable('members');
+                }
+                
+                await saveData(type);
+                renderTable(type);
+                
+                if (type === 'leadtime') {
+                    renderGantt();
+                    updateProjectSelect();
+                }
+            }
+        }
+        
+        // ==================== 저장 ====================
+        async function saveData(type) {
+            updateStats();
+            await api.write(SHEETS[type.toUpperCase()], DATA[type]);
+            if (type === 'leadtime' || type === 'members') {
+                await api.write(SHEETS.MEMBERS, DATA.members);
+            }
+        }
+        
+        // ==================== UI ====================
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('active', show);
+        }
+        
+        function showSync(msg) {
+            document.getElementById('sync-text').textContent = msg;
+        }
+        
+        // ==================== 폼 제출 ====================
+        document.getElementById('modal-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const item = {};
+            let hasData = false;
+            
+            for (let [key, value] of formData.entries()) {
+                item[key] = value;
+                if (value.trim()) hasData = true;
+            }
+            
+            // 2. 빈 데이터 저장 방지
+            if (!hasData) {
+                alert('하나 이상의 항목을 입력해주세요.');
+                return;
+            }
+            
+            // 1. 저장 중 UI 차단
+            const submitBtn = e.target.querySelector('[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '저장 중...';
+            
+            try {
+                if (currentType === 'baseline') {
+                    // 베이스라인 추가/수정
+                    if (currentIndex !== null) {
+                        // 기존 자료 유지하며 정보만 수정
+                        const existingDocs = DATA.baselines[currentIndex].자료;
+                        DATA.baselines[currentIndex] = { ...item, 자료: existingDocs };
+                    } else {
+                        DATA.baselines.push({ ...item, 자료: [] });
+                    }
+                    await saveBaselines();
+                    renderBaselines();
+                } else if (currentType === 'doc') {
+                    // 베이스라인 자료 추가/수정
+                    if (currentIndex !== null) {
+                        DATA.baselines[currentBaselineIdx].자료[currentIndex] = item;
+                    } else {
+                        DATA.baselines[currentBaselineIdx].자료.push(item);
+                    }
+                    await saveBaselines();
+                    renderBaselines();
+                } else {
+                    // 일반 데이터
+                    if (currentIndex !== null) {
+                        // 수정 시
+                        if (currentType === 'members') {
+                            // 연구원 수정: 자동계산 필드 유지
+                            const existing = DATA[currentType][currentIndex];
+                            item.현재프로젝트수 = existing.현재프로젝트수 || 0;
+                            item.누적완료업무 = existing.누적완료업무 || 0;
+                            item['일정준수율(%)'] = existing['일정준수율(%)'] || 0;
+                        }
+                        DATA[currentType][currentIndex] = item;
+                    } else {
+                        // 추가 시
+                        if (currentType === 'members') {
+                            // 연구원 추가: 초기값 설정
+                            item.현재프로젝트수 = 0;
+                            item.누적완료업무 = 0;
+                            item['일정준수율(%)'] = 0;
+                        }
+                        DATA[currentType].push(item);
+                    }
+                    
+                    // 리드타임 변경 시 연구원 통계도 업데이트
+                    if (currentType === 'leadtime') {
+                        updateStats();
+                        await api.write(SHEETS.MEMBERS, DATA.members);
+                    }
+                    
+                    // 연구원 추가/수정 시에도 통계 재계산
+                    if (currentType === 'members') {
+                        updateStats();
+                    }
+                    
+                    await saveData(currentType);
+                    renderTable(currentType);
+                    
+                    // 연구원 테이블도 갱신 (리드타임 변경 시)
+                    if (currentType === 'leadtime') {
+                        renderTable('members');
+                    }
+                    
+                    if (currentType === 'leadtime') {
+                        renderGantt();
+                        updateProjectSelect();
+                    }
+                }
+                
+                closeModal();
+            } catch (e) {
+                alert('저장 실패: ' + e.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        });
+        
+        // ==================== 초기화 ====================
+        window.addEventListener('DOMContentLoaded', loadData);
+        
+        // 5분마다 자동 동기화
+        setInterval(loadData, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
