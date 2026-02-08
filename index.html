@@ -512,7 +512,7 @@
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <h3 style="margin: 0;">상태 이력</h3>
-                <button class="btn" onclick="addStatusEntry()">+ 상태 추가</button>
+                <div style="color: var(--text-secondary); font-size: 0.9rem;">💡 상태는 리드타임 테이블의 버튼으로 변경하세요</div>
             </div>
 
             <div id="status-timeline" style="max-height: 400px; overflow-y: auto;"></div>
@@ -647,6 +647,24 @@
                 const row = tbody.insertRow();
                 
                 if (type === 'leadtime') {
+                    // 현재 상태 계산
+                    let currentStatus = '진행중';
+                    let statusColor = 'var(--primary)';
+                    let statusIcon = '▶';
+                    
+                    if (item.실제완료일) {
+                        currentStatus = '완료';
+                        statusColor = 'var(--success)';
+                        statusIcon = '✓';
+                    } else if (item.상태이력 && item.상태이력.length > 0) {
+                        const lastStatus = item.상태이력[item.상태이력.length - 1];
+                        if (lastStatus.상태 === '중단') {
+                            currentStatus = '중단';
+                            statusColor = 'var(--warning)';
+                            statusIcon = '⏸';
+                        }
+                    }
+                    
                     row.innerHTML = `
                         <td>${item.프로젝트 || ''}</td>
                         <td>${item.업무명 || ''}</td>
@@ -657,9 +675,12 @@
                         <td>${formatDate(item.실제완료일)}</td>
                         <td>${item['리드타임(일)'] || ''}</td>
                         <td>
-                            <button class="btn btn-sm" onclick="openStatusHistory(${idx})" title="상태 이력">📊</button>
-                            <button class="btn btn-sm" onclick="editItem('${type}', ${idx})">수정</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteItem('${type}', ${idx})">삭제</button>
+                            <div style="display: flex; gap: 0.3rem; align-items: center;">
+                                <button class="btn btn-sm" style="background: ${statusColor}; color: white; min-width: 70px;" onclick="toggleTaskStatus(${idx})">${statusIcon} ${currentStatus}</button>
+                                <button class="btn btn-sm" onclick="openStatusHistory(${idx})" title="이력 보기">📊</button>
+                                <button class="btn btn-sm" onclick="editItem('${type}', ${idx})">수정</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteItem('${type}', ${idx})">삭제</button>
+                            </div>
                         </td>
                     `;
                 } else if (type === 'members') {
@@ -1126,6 +1147,54 @@
         }
 
         // ==================== 상태 이력 관리 ====================
+        function toggleTaskStatus(taskIndex) {
+            const task = DATA.leadtime[taskIndex];
+            
+            if (!task.상태이력) {
+                task.상태이력 = [];
+            }
+            
+            // 현재 상태 확인
+            let currentStatus = '진행중';
+            if (task.실제완료일) {
+                alert('이미 완료된 업무입니다.');
+                return;
+            }
+            
+            if (task.상태이력.length > 0) {
+                const lastEntry = task.상태이력[task.상태이력.length - 1];
+                currentStatus = lastEntry.상태;
+            }
+            
+            // 상태 토글
+            if (currentStatus === '진행중' || currentStatus === '재개') {
+                // 진행중 → 중단
+                const reason = prompt('⏸ 중단 사유를 입력하세요:', '');
+                if (reason === null) return; // 취소
+                
+                task.상태이력.push({
+                    상태: '중단',
+                    날짜: new Date().toISOString().split('T')[0],
+                    사유: reason || '사유 없음'
+                });
+                
+            } else if (currentStatus === '중단') {
+                // 중단 → 재개
+                if (confirm('▶ 업무를 재개하시겠습니까?')) {
+                    task.상태이력.push({
+                        상태: '재개',
+                        날짜: new Date().toISOString().split('T')[0],
+                        사유: ''
+                    });
+                }
+            }
+            
+            // 저장 및 갱신
+            saveData('leadtime');
+            renderTable('leadtime');
+            renderGantt();
+        }
+
         function openStatusHistory(taskIndex) {
             currentTaskIndex = taskIndex;
             const task = DATA.leadtime[taskIndex];
@@ -1163,7 +1232,7 @@
                 timeline.innerHTML = `
                     <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
                         <p style="font-size: 1.2rem;">📝 상태 이력이 없습니다</p>
-                        <p style="font-size: 0.9rem;">위의 "+ 상태 추가" 버튼을 눌러 상태를 기록하세요</p>
+                        <p style="font-size: 0.9rem;">리드타임 테이블에서 상태 버튼을 눌러 중단/재개를 기록하세요</p>
                     </div>
                 `;
                 return;
@@ -1197,11 +1266,11 @@
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
                                     <strong style="color: ${color}; font-size: 1.1rem;">${entry.상태}</strong>
-                                    <span style="color: var(--text-secondary); margin-left: 1rem;">${formatDate(entry.날짜)}</span>
+                                    <span style="color: var(--text-secondary); margin-left: 1rem; font-size: 0.95rem;">${formatDate(entry.날짜)}</span>
                                 </div>
                                 <button class="btn btn-sm btn-danger" onclick="deleteStatusEntry(${idx})">삭제</button>
                             </div>
-                            ${entry.사유 ? `<div style="margin-top: 0.5rem; color: var(--text-secondary);">📝 ${entry.사유}</div>` : ''}
+                            ${entry.사유 ? `<div style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.95rem;">📝 ${entry.사유}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -1211,46 +1280,15 @@
             timeline.innerHTML = html;
         }
 
-        function addStatusEntry() {
-            const task = DATA.leadtime[currentTaskIndex];
-            
-            const status = prompt('상태를 선택하세요:\n1. 시작\n2. 진행중\n3. 중단\n4. 재개\n5. 완료', '3');
-            if (!status) return;
-            
-            const statusMap = {'1': '시작', '2': '진행중', '3': '중단', '4': '재개', '5': '완료'};
-            const selectedStatus = statusMap[status] || '진행중';
-            
-            const date = prompt('날짜를 입력하세요 (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
-            if (!date) return;
-            
-            let reason = '';
-            if (selectedStatus === '중단') {
-                reason = prompt('중단 사유를 입력하세요:', '');
-            }
-            
-            if (!task.상태이력) {
-                task.상태이력 = [];
-            }
-            
-            task.상태이력.push({
-                상태: selectedStatus,
-                날짜: date,
-                사유: reason || ''
-            });
-            
-            // 날짜순 정렬
-            task.상태이력.sort((a, b) => new Date(a.날짜) - new Date(b.날짜));
-            
-            renderStatusTimeline();
-            calculateStatusStats();
-        }
-
         function deleteStatusEntry(idx) {
             if (confirm('이 상태 기록을 삭제하시겠습니까?')) {
                 const task = DATA.leadtime[currentTaskIndex];
                 task.상태이력.splice(idx, 1);
                 renderStatusTimeline();
                 calculateStatusStats();
+                saveData('leadtime');
+                renderTable('leadtime');
+                renderGantt();
             }
         }
 
