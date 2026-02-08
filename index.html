@@ -437,8 +437,11 @@
                         <th>직무</th>
                         <th>프로젝트수</th>
                         <th>완료업무</th>
-                        <th>일정준수율</th>
-                        <th>보유기술</th>
+                        <th>순수작업</th>
+                        <th>인터럽트</th>
+                        <th>가동률</th>
+                        <th>준수율</th>
+                        <th>보정준수율</th>
                         <th>작업</th>
                     </tr>
                 </thead>
@@ -598,6 +601,19 @@
             DATA.members = sheets[SHEETS.MEMBERS] || [];
             DATA.voc = sheets[SHEETS.VOC] || [];
             
+            // 리드타임 상태이력 파싱
+            DATA.leadtime.forEach(task => {
+                if (task.상태이력 && typeof task.상태이력 === 'string') {
+                    try {
+                        task.상태이력 = JSON.parse(task.상태이력);
+                    } catch (e) {
+                        task.상태이력 = [];
+                    }
+                } else if (!task.상태이력) {
+                    task.상태이력 = [];
+                }
+            });
+            
             // 베이스라인 처리
             const rawBase = sheets[SHEETS.BASELINES] || [];
             const baseMap = {};
@@ -650,18 +666,15 @@
                     // 현재 상태 계산
                     let currentStatus = '진행중';
                     let statusColor = 'var(--primary)';
-                    let statusIcon = '▶';
                     
                     if (item.실제완료일) {
                         currentStatus = '완료';
                         statusColor = 'var(--success)';
-                        statusIcon = '✓';
                     } else if (item.상태이력 && item.상태이력.length > 0) {
                         const lastStatus = item.상태이력[item.상태이력.length - 1];
                         if (lastStatus.상태 === '중단') {
                             currentStatus = '중단';
                             statusColor = 'var(--warning)';
-                            statusIcon = '⏸';
                         }
                     }
                     
@@ -676,7 +689,11 @@
                         <td>${item['리드타임(일)'] || ''}</td>
                         <td>
                             <div style="display: flex; gap: 0.3rem; align-items: center;">
-                                <button class="btn btn-sm" style="background: ${statusColor}; color: white; min-width: 70px;" onclick="toggleTaskStatus(${idx})">${statusIcon} ${currentStatus}</button>
+                                <select onchange="changeTaskStatus(${idx}, this.value)" style="padding: 0.4rem; border-radius: 5px; background: ${statusColor}; color: white; border: none; font-weight: 600; min-width: 80px; cursor: pointer;">
+                                    <option value="진행중" ${currentStatus === '진행중' ? 'selected' : ''}>▶ 진행중</option>
+                                    <option value="중단" ${currentStatus === '중단' ? 'selected' : ''}>⏸ 중단</option>
+                                    <option value="완료" ${currentStatus === '완료' ? 'selected' : ''} disabled>✓ 완료</option>
+                                </select>
                                 <button class="btn btn-sm" onclick="openStatusHistory(${idx})" title="이력 보기">📊</button>
                                 <button class="btn btn-sm" onclick="editItem('${type}', ${idx})">수정</button>
                                 <button class="btn btn-sm btn-danger" onclick="deleteItem('${type}', ${idx})">삭제</button>
@@ -684,13 +701,27 @@
                         </td>
                     `;
                 } else if (type === 'members') {
+                    // 보정 통계 표시
+                    const pureWorkDays = item.순수작업일수 || 0;
+                    const interruptDays = item.인터럽트일수 || 0;
+                    const totalDays = pureWorkDays + interruptDays;
+                    const workingRate = totalDays > 0 ? Math.round((pureWorkDays / totalDays) * 100) : 0;
+                    const originalRate = item['일정준수율(%)'] || 0;
+                    const adjustedRate = item['보정준수율(%)'] || 0;
+                    
+                    // 색상 코딩
+                    const rateColor = adjustedRate >= 80 ? 'var(--success)' : adjustedRate >= 60 ? 'var(--warning)' : 'var(--danger)';
+                    
                     row.innerHTML = `
-                        <td>${item.성명 || ''}</td>
+                        <td><strong>${item.성명 || ''}</strong></td>
                         <td>${item.직무 || ''}</td>
-                        <td>${item.현재프로젝트수 || ''}</td>
-                        <td>${item.누적완료업무 || ''}</td>
-                        <td>${item['일정준수율(%)'] || ''}</td>
-                        <td>${item.보유기술 || ''}</td>
+                        <td style="text-align: center;">${item.현재프로젝트수 || 0}</td>
+                        <td style="text-align: center;">${item.누적완료업무 || 0}</td>
+                        <td style="text-align: center;">${pureWorkDays}일</td>
+                        <td style="text-align: center; color: var(--warning);">${interruptDays}일</td>
+                        <td style="text-align: center;"><strong>${workingRate}%</strong></td>
+                        <td style="text-align: center;">${originalRate}%</td>
+                        <td style="text-align: center; color: ${rateColor}; font-weight: 700; font-size: 1.1rem;">${adjustedRate}%</td>
                         <td>
                             <button class="btn btn-sm" onclick="editItem('${type}', ${idx})">수정</button>
                             <button class="btn btn-sm btn-danger" onclick="deleteItem('${type}', ${idx})">삭제</button>
@@ -731,6 +762,56 @@
                 const completed = tasks.filter(t => t.실제완료일);
                 member.누적완료업무 = completed.length;
                 
+                // 순수 작업일수 & 인터럽트 일수 계산
+                let totalPureWorkDays = 0;
+                let totalInterruptDays = 0;
+                
+                completed.forEach(task => {
+                    if (task.상태이력 && task.상태이력.length > 0) {
+                        let workDays = 0;
+                        let interruptDays = 0;
+                        let currentState = null;
+                        let stateStartDate = null;
+                        
+                        task.상태이력.forEach((entry, idx) => {
+                            if (currentState && stateStartDate) {
+                                const days = Math.ceil((new Date(entry.날짜) - new Date(stateStartDate)) / (1000 * 60 * 60 * 24));
+                                
+                                if (currentState === '진행중' || currentState === '재개' || currentState === '시작') {
+                                    workDays += days;
+                                } else if (currentState === '중단') {
+                                    interruptDays += days;
+                                }
+                            }
+                            
+                            currentState = entry.상태;
+                            stateStartDate = entry.날짜;
+                        });
+                        
+                        // 마지막 상태에서 완료일까지
+                        if (currentState && stateStartDate) {
+                            const days = Math.ceil((new Date(task.실제완료일) - new Date(stateStartDate)) / (1000 * 60 * 60 * 24));
+                            
+                            if (currentState === '진행중' || currentState === '재개' || currentState === '시작') {
+                                workDays += days;
+                            } else if (currentState === '중단') {
+                                interruptDays += days;
+                            }
+                        }
+                        
+                        totalPureWorkDays += workDays;
+                        totalInterruptDays += interruptDays;
+                    } else {
+                        // 상태이력이 없으면 전체 기간을 순수 작업으로 간주
+                        const start = new Date(task.업무착수일);
+                        const end = new Date(task.실제완료일);
+                        totalPureWorkDays += Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                    }
+                });
+                
+                member.순수작업일수 = totalPureWorkDays;
+                member.인터럽트일수 = totalInterruptDays;
+                
                 // 일정준수율 계산: 완료예정일 안에 끝낸 업무 / 전체 완료된 업무
                 if (completed.length > 0) {
                     const onTime = completed.filter(t => {
@@ -739,8 +820,39 @@
                         return actualDate <= plannedDate;
                     }).length;
                     member['일정준수율(%)'] = Math.round((onTime / completed.length) * 100);
+                    
+                    // 보정 준수율 계산: 인터럽트를 고려한 준수율
+                    // 보정 완료예정일 = 원래 완료예정일 + 인터럽트 일수
+                    const adjustedOnTime = completed.filter(t => {
+                        const actualDate = new Date(t.실제완료일);
+                        const plannedDate = new Date(t.완료예정일);
+                        
+                        // 해당 업무의 인터럽트 일수 계산
+                        let taskInterruptDays = 0;
+                        if (t.상태이력 && t.상태이력.length > 0) {
+                            let currentState = null;
+                            let stateStartDate = null;
+                            
+                            t.상태이력.forEach((entry) => {
+                                if (currentState === '중단' && stateStartDate) {
+                                    taskInterruptDays += Math.ceil((new Date(entry.날짜) - new Date(stateStartDate)) / (1000 * 60 * 60 * 24));
+                                }
+                                currentState = entry.상태;
+                                stateStartDate = entry.날짜;
+                            });
+                        }
+                        
+                        // 보정된 예정일 = 원래 예정일 + 인터럽트 일수
+                        const adjustedPlannedDate = new Date(plannedDate);
+                        adjustedPlannedDate.setDate(adjustedPlannedDate.getDate() + taskInterruptDays);
+                        
+                        return actualDate <= adjustedPlannedDate;
+                    }).length;
+                    
+                    member['보정준수율(%)'] = Math.round((adjustedOnTime / completed.length) * 100);
                 } else {
                     member['일정준수율(%)'] = 0;
+                    member['보정준수율(%)'] = 0;
                 }
             });
         }
@@ -1147,30 +1259,39 @@
         }
 
         // ==================== 상태 이력 관리 ====================
-        function toggleTaskStatus(taskIndex) {
+        function changeTaskStatus(taskIndex, newStatus) {
             const task = DATA.leadtime[taskIndex];
             
             if (!task.상태이력) {
                 task.상태이력 = [];
             }
             
-            // 현재 상태 확인
-            let currentStatus = '진행중';
+            // 완료된 업무는 변경 불가
             if (task.실제완료일) {
                 alert('이미 완료된 업무입니다.');
+                renderTable('leadtime');
                 return;
             }
             
+            // 현재 상태 확인
+            let currentStatus = '진행중';
             if (task.상태이력.length > 0) {
                 const lastEntry = task.상태이력[task.상태이력.length - 1];
                 currentStatus = lastEntry.상태;
             }
             
-            // 상태 토글
-            if (currentStatus === '진행중' || currentStatus === '재개') {
-                // 진행중 → 중단
+            // 같은 상태면 무시
+            if (currentStatus === newStatus) {
+                return;
+            }
+            
+            // 상태 변경
+            if (newStatus === '중단') {
                 const reason = prompt('⏸ 중단 사유를 입력하세요:', '');
-                if (reason === null) return; // 취소
+                if (reason === null) {
+                    renderTable('leadtime');
+                    return;
+                }
                 
                 task.상태이력.push({
                     상태: '중단',
@@ -1178,15 +1299,13 @@
                     사유: reason || '사유 없음'
                 });
                 
-            } else if (currentStatus === '중단') {
-                // 중단 → 재개
-                if (confirm('▶ 업무를 재개하시겠습니까?')) {
-                    task.상태이력.push({
-                        상태: '재개',
-                        날짜: new Date().toISOString().split('T')[0],
-                        사유: ''
-                    });
-                }
+            } else if (newStatus === '진행중') {
+                // 중단 → 진행중 (재개)
+                task.상태이력.push({
+                    상태: '재개',
+                    날짜: new Date().toISOString().split('T')[0],
+                    사유: ''
+                });
             }
             
             // 저장 및 갱신
@@ -1721,7 +1840,18 @@
         // ==================== 저장 ====================
         async function saveData(type) {
             updateStats();
-            await api.write(SHEETS[type.toUpperCase()], DATA[type]);
+            
+            // 리드타임 저장 시 상태이력을 JSON 문자열로 변환
+            if (type === 'leadtime') {
+                const dataToSave = DATA[type].map(task => ({
+                    ...task,
+                    상태이력: task.상태이력 ? JSON.stringify(task.상태이력) : '[]'
+                }));
+                await api.write(SHEETS[type.toUpperCase()], dataToSave);
+            } else {
+                await api.write(SHEETS[type.toUpperCase()], DATA[type]);
+            }
+            
             if (type === 'leadtime' || type === 'members') {
                 await api.write(SHEETS.MEMBERS, DATA.members);
             }
